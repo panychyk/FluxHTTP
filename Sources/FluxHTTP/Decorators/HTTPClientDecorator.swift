@@ -1,6 +1,6 @@
 import Foundation
 
-open class HTTPClientDecorator: HTTPClient {
+open class HTTPClientDecorator: @unchecked Sendable, HTTPClient {
     
     public let wrapped: HTTPClient
     
