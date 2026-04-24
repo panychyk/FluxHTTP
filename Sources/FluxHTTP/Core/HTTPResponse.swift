@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPResponse {
+public struct HTTPResponse: @unchecked Sendable {
     public let data: Data
     public let response: HTTPURLResponse
     
