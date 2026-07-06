@@ -1,13 +1,13 @@
 import Foundation
 
-public final class URLSessionClient: HTTPClient {
-    
+public final class URLSessionClient: HTTPClient, Sendable {
+
     private let session: URLSession
-    
+
     public init(session: URLSession = .shared) {
         self.session = session
     }
-    
+
     public func send(_ request: URLRequest) async throws -> HTTPResponse {
         do {
             let (data, response) = try await session.data(for: request)
@@ -15,9 +15,18 @@ public final class URLSessionClient: HTTPClient {
                 throw HTTPError.invalidResponse
             }
             return HTTPResponse(data: data, response: http)
-            
+
+        } catch let error as HTTPError {
+            throw error
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            // Normalize cancellation so callers (and RetryDecorator) see it uniformly.
+            throw CancellationError()
         } catch let error as URLError {
             throw HTTPError.transport(error)
+        } catch {
+            throw HTTPError.unknown(error)
         }
     }
 }
