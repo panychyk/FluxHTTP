@@ -1,18 +1,22 @@
 import Foundation
 
+/// Composes a decorator pipeline around a base client.
+///
+/// Decorators added later wrap the ones added earlier: the last `add` becomes
+/// the outermost layer and sees the request first.
 public struct HTTPClientBuilder {
-    
-    private var client: HTTPClient
-    
-    public init(base: HTTPClient) {
+
+    private let client: any HTTPClient
+
+    public init(base: any HTTPClient = URLSessionClient()) {
         self.client = base
     }
-    
-    public mutating func add(_ decorator: (HTTPClient) -> HTTPClient) {
-        client = decorator(client)
+
+    public func add(_ decorator: (any HTTPClient) -> any HTTPClient) -> HTTPClientBuilder {
+        HTTPClientBuilder(base: decorator(client))
     }
-    
-    public func build() -> HTTPClient {
+
+    public func build() -> any HTTPClient {
         client
     }
 }
