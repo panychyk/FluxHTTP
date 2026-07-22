@@ -7,9 +7,10 @@ import Testing
     @Test func describesAllCases() {
         struct Dummy: Error {}
 
+        #expect(HTTPError.invalidRequest("no baseURL").errorDescription == "Invalid request: no baseURL.")
         #expect(HTTPError.invalidResponse.errorDescription == "The server returned a non-HTTP response.")
         #expect(HTTPError.transport(URLError(.timedOut)).errorDescription?.hasPrefix("Transport error:") == true)
-        #expect(HTTPError.unacceptableStatus(code: 418, data: Data()).errorDescription == "Request failed with status code 418.")
+        #expect(HTTPError.unacceptableStatus(response: HTTPResponse(statusCode: 418)).errorDescription == "Request failed with status code 418.")
         #expect(HTTPError.unknown(Dummy()).errorDescription?.hasPrefix("Unknown error:") == true)
     }
 }

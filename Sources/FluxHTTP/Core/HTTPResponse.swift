@@ -46,15 +46,8 @@ public struct HTTPResponse: Sendable {
     @discardableResult
     public func validated(acceptable: Range<Int> = 200..<300) throws -> HTTPResponse {
         guard acceptable.contains(statusCode) else {
-            throw HTTPError.unacceptableStatus(code: statusCode, data: data)
+            throw HTTPError.unacceptableStatus(response: self)
         }
         return self
-    }
-
-    public func decode<T: Decodable>(
-        _ type: T.Type = T.self,
-        decoder: JSONDecoder = JSONDecoder()
-    ) throws -> T {
-        try decoder.decode(type, from: data)
     }
 }

@@ -52,4 +52,41 @@ private final class RecordingDecorator: HTTPClientDecorator, @unchecked Sendable
 
         #expect(response.statusCode == 204)
     }
+
+    @Test func buildWithoutDecoratorsDoesNotRetry() async throws {
+        let mock = MockHTTPClient(response: HTTPResponse(statusCode: 503))
+        let client = HTTPClientBuilder(base: mock).build()
+
+        let response = try await client.send(URLRequest(url: URL(string: "https://example.com")!))
+
+        #expect(response.statusCode == 503)
+        #expect(mock.requestCount == 1)
+    }
+
+    @Test func baseURLWrapsFinishedRetryPipeline() async throws {
+        let baseURL = URL(string: "https://api.example.com/v1")!
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 503)),
+            .success(HTTPResponse(statusCode: 200))
+        ])
+        let policy = RetryPolicy(
+            maxRetries: 1,
+            delay: 0,
+            maximumDelay: 0,
+            usesExponentialBackoff: false,
+            usesJitter: false
+        )
+
+        let client: any HTTPClient = HTTPClientBuilder(base: mock)
+            .add { RetryDecorator(wrapping: $0, policy: policy) }
+            .build(baseURL: baseURL)
+
+        let response = try await client.send(.get("health"))
+
+        #expect(response.statusCode == 200)
+        #expect(mock.requests.map(\.url?.absoluteString) == [
+            "https://api.example.com/v1/health",
+            "https://api.example.com/v1/health"
+        ])
+    }
 }

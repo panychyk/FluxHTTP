@@ -110,6 +110,20 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         #expect(mock.requestCount == 1)
     }
 
+    @Test func doesNotRetryRequestWithBodyStream() async throws {
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 500))
+        ])
+        let client = RetryDecorator(wrapping: mock, policy: fastPolicy())
+
+        var request = getRequest()
+        request.httpBodyStream = InputStream(data: Data("body".utf8))
+        let response = try await client.send(request)
+
+        #expect(response.statusCode == 500)
+        #expect(mock.requestCount == 1)
+    }
+
     @Test func doesNotRetryUnknownErrorType() async throws {
         struct CustomError: Error {}
         let mock = MockHTTPClient(results: [
@@ -165,6 +179,37 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         #expect(mock.requestCount == 2)
     }
 
+    @Test func returnsResponseWhenRetryAfterExceedsMaximumDelay() async throws {
+        let response = HTTPResponse(statusCode: 503, headers: ["Retry-After": "1"])
+        let mock = MockHTTPClient(results: [.success(response)])
+        let policy = RetryPolicy(
+            maxRetries: 2,
+            delay: 0,
+            maximumDelay: 0,
+            usesExponentialBackoff: false,
+            usesJitter: false
+        )
+        let client = RetryDecorator(wrapping: mock, policy: policy)
+
+        let result = try await client.send(getRequest())
+
+        #expect(result.statusCode == 503)
+        #expect(mock.requestCount == 1)
+    }
+
+    @Test func ignoresMalformedRetryAfterAndRetries() async throws {
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 503, headers: ["Retry-After": "later"])),
+            .success(HTTPResponse(statusCode: 200))
+        ])
+        let client = RetryDecorator(wrapping: mock, policy: fastPolicy())
+
+        let response = try await client.send(getRequest())
+
+        #expect(response.statusCode == 200)
+        #expect(mock.requestCount == 2)
+    }
+
     @Test func propagatesCancellationFromRetryLoop() async throws {
         let mock = MockHTTPClient(results: [
             .success(HTTPResponse(statusCode: 503))
@@ -196,6 +241,18 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 404)
+        #expect(mock.requestCount == 1)
+    }
+
+    @Test func doesNotRetryUnlistedServerErrorByDefault() async throws {
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 501))
+        ])
+        let client = RetryDecorator(wrapping: mock, policy: fastPolicy())
+
+        let response = try await client.send(getRequest())
+
+        #expect(response.statusCode == 501)
         #expect(mock.requestCount == 1)
     }
 }
