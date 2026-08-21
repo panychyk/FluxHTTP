@@ -3,26 +3,26 @@ import Testing
 @testable import FluxHTTP
 
 /// Appends its label to a shared log when the request passes through.
-private final class RecordingDecorator: HTTPClientDecorator, @unchecked Sendable {
+private struct RecordingDecorator: HTTPClientDecorator {
 
-    final class Log: @unchecked Sendable {
-        private let lock = NSLock()
+    actor Log {
         private var entries: [String] = []
-        func append(_ entry: String) { lock.withLock { entries.append(entry) } }
-        var all: [String] { lock.withLock { entries } }
+        func append(_ entry: String) { entries.append(entry) }
+        var all: [String] { entries }
     }
 
+    let wrapped: any HTTPClient
     private let label: String
     private let log: Log
 
     init(wrapping: any HTTPClient, label: String, log: Log) {
+        self.wrapped = wrapping
         self.label = label
         self.log = log
-        super.init(wrapping: wrapping)
     }
 
-    override func send(_ request: URLRequest) async throws -> HTTPResponse {
-        log.append(label)
+    func send(_ request: URLRequest) async throws -> HTTPResponse {
+        await log.append(label)
         return try await wrapped.send(request)
     }
 }
@@ -40,8 +40,8 @@ private final class RecordingDecorator: HTTPClientDecorator, @unchecked Sendable
 
         _ = try await client.send(URLRequest(url: URL(string: "https://example.com")!))
 
-        #expect(log.all == ["outer", "inner"])
-        #expect(mock.requestCount == 1)
+        #expect(await log.all == ["outer", "inner"])
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func buildWithoutDecoratorsReturnsBase() async throws {
@@ -60,7 +60,7 @@ private final class RecordingDecorator: HTTPClientDecorator, @unchecked Sendable
         let response = try await client.send(URLRequest(url: URL(string: "https://example.com")!))
 
         #expect(response.statusCode == 503)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func baseURLWrapsFinishedRetryPipeline() async throws {
@@ -84,7 +84,7 @@ private final class RecordingDecorator: HTTPClientDecorator, @unchecked Sendable
         let response = try await client.send(.get("health"))
 
         #expect(response.statusCode == 200)
-        #expect(mock.requests.map(\.url?.absoluteString) == [
+        #expect(await mock.requests.map(\.url?.absoluteString) == [
             "https://api.example.com/v1/health",
             "https://api.example.com/v1/health"
         ])

@@ -31,7 +31,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func exhaustsRetriesAndThrowsLastError() async throws {
@@ -44,7 +44,34 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
             try await client.send(getRequest())
         }
         // 1 initial attempt + 2 retries
-        #expect(mock.requestCount == 3)
+        #expect(await mock.requestCount == 3)
+    }
+
+    @Test func zeroRetriesPerformsSingleAttempt() async throws {
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 503)),
+            .success(HTTPResponse(statusCode: 200))
+        ])
+        let client = RetryDecorator(wrapping: mock, policy: fastPolicy(maxRetries: 0))
+
+        let response = try await client.send(getRequest())
+
+        #expect(response.statusCode == 503)
+        #expect(await mock.requestCount == 1)
+    }
+
+    @Test func succeedsOnLastAllowedAttempt() async throws {
+        let mock = MockHTTPClient(results: [
+            .success(HTTPResponse(statusCode: 503)),
+            .success(HTTPResponse(statusCode: 503)),
+            .success(HTTPResponse(statusCode: 200))
+        ])
+        let client = RetryDecorator(wrapping: mock, policy: fastPolicy(maxRetries: 2))
+
+        let response = try await client.send(getRequest())
+
+        #expect(response.statusCode == 200)
+        #expect(await mock.requestCount == 3)
     }
 
     @Test func doesNotRetryNonRetryableTransportError() async throws {
@@ -56,7 +83,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         await #expect(throws: HTTPError.self) {
             try await client.send(getRequest())
         }
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func doesNotRetryCancellation() async throws {
@@ -68,7 +95,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         await #expect(throws: CancellationError.self) {
             try await client.send(getRequest())
         }
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func retriesRetryableStatusCode() async throws {
@@ -81,7 +108,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func returnsFailingStatusAfterRetriesExhausted() async throws {
@@ -93,7 +120,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 500)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func doesNotRetryNonIdempotentMethod() async throws {
@@ -107,7 +134,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(request)
 
         #expect(response.statusCode == 500)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func doesNotRetryRequestWithBodyStream() async throws {
@@ -121,7 +148,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(request)
 
         #expect(response.statusCode == 500)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func doesNotRetryUnknownErrorType() async throws {
@@ -134,7 +161,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         await #expect(throws: CustomError.self) {
             try await client.send(getRequest())
         }
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func defaultPolicyPassesSuccessThrough() async throws {
@@ -144,7 +171,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func retriesRawURLErrorWithoutWrapper() async throws {
@@ -157,7 +184,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func honorsRetryAfterWithBackoffAndJitter() async throws {
@@ -176,7 +203,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func returnsResponseWhenRetryAfterExceedsMaximumDelay() async throws {
@@ -194,7 +221,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let result = try await client.send(getRequest())
 
         #expect(result.statusCode == 503)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func ignoresMalformedRetryAfterAndRetries() async throws {
@@ -207,7 +234,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 200)
-        #expect(mock.requestCount == 2)
+        #expect(await mock.requestCount == 2)
     }
 
     @Test func propagatesCancellationFromRetryLoop() async throws {
@@ -241,7 +268,7 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 404)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 
     @Test func doesNotRetryUnlistedServerErrorByDefault() async throws {
@@ -253,6 +280,6 @@ private func getRequest(_ url: String = "https://example.com/a") -> URLRequest {
         let response = try await client.send(getRequest())
 
         #expect(response.statusCode == 501)
-        #expect(mock.requestCount == 1)
+        #expect(await mock.requestCount == 1)
     }
 }

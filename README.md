@@ -232,20 +232,21 @@ path wins over both. Raw `URLRequest` values are never rewritten.
 
 ### Application-owned decorators
 
-Policies specific to an application should live in its own target. Subclass
-`HTTPClientDecorator`, override `send(_:)`, and forward the request through
+Policies specific to an application should live in its own target. Conform to
+`HTTPClientDecorator`, implement `send(_:)`, and forward the request through
 `wrapped`:
 
 ```swift
-final class APIKeyDecorator: HTTPClientDecorator, @unchecked Sendable {
+final class APIKeyDecorator: HTTPClientDecorator {
+    let wrapped: any HTTPClient
     private let apiKey: String
 
     init(wrapping: any HTTPClient, apiKey: String) {
+        self.wrapped = wrapping
         self.apiKey = apiKey
-        super.init(wrapping: wrapping)
     }
 
-    override func send(_ request: URLRequest) async throws -> HTTPResponse {
+    func send(_ request: URLRequest) async throws -> HTTPResponse {
         var request = request
         if request.value(forHTTPHeaderField: "X-API-Key") == nil {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -255,8 +256,9 @@ final class APIKeyDecorator: HTTPClientDecorator, @unchecked Sendable {
 }
 ```
 
-Subclasses inherit unchecked sendability. Keep stored values immutable, or
-synchronize mutable state explicitly.
+Decorator conformers are checked for sendability by the compiler. Prefer
+immutable structs or final classes; move mutable state behind an actor or
+another explicit synchronization boundary.
 
 ### Decorator order
 

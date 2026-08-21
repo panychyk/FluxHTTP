@@ -132,7 +132,7 @@ import Testing
         )
 
         #expect(response.statusCode == 201)
-        let sent = try #require(mock.requests.first)
+        let sent = try #require(await mock.requests.first)
         #expect(sent.url?.absoluteString == "https://api.example.com/v1/items")
         #expect(sent.httpMethod == "POST")
         #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/octet-stream")
