@@ -2,6 +2,10 @@ import Foundation
 import Testing
 @testable import FluxHTTP
 
+private struct PassthroughDecorator: HTTPClientDecorator {
+    let wrapped: any HTTPClient
+}
+
 @Suite struct HTTPErrorTests {
 
     @Test func describesAllCases() {
@@ -17,14 +21,14 @@ import Testing
 
 @Suite struct HTTPClientDecoratorTests {
 
-    @Test func baseDecoratorForwardsRequestUnchanged() async throws {
+    @Test func defaultDecoratorImplementationForwardsRequestUnchanged() async throws {
         let mock = MockHTTPClient(response: HTTPResponse(statusCode: 204))
-        let client = HTTPClientDecorator(wrapping: mock)
+        let client = PassthroughDecorator(wrapped: mock)
 
         let request = URLRequest(url: URL(string: "https://example.com/base")!)
         let response = try await client.send(request)
 
         #expect(response.statusCode == 204)
-        #expect(mock.requests[0].url?.absoluteString == "https://example.com/base")
+        #expect(await mock.requests[0].url?.absoluteString == "https://example.com/base")
     }
 }

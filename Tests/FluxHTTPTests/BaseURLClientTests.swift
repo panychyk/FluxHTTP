@@ -22,7 +22,7 @@ import Testing
             .get("habits", query: [URLQueryItem(name: "limit", value: "5")])
         )
 
-        #expect(mock.requests.first?.url?.absoluteString == "https://api.example.com/v1/habits?limit=5")
+        #expect(await mock.requests.first?.url?.absoluteString == "https://api.example.com/v1/habits?limit=5")
     }
 
     @Test func oneArgSendUsesStoredBase() async throws {
@@ -30,7 +30,7 @@ import Testing
 
         _ = try await client.send(.post("habits", body: Data("x".utf8)))
 
-        let sent = try #require(mock.requests.first)
+        let sent = try #require(await mock.requests.first)
         #expect(sent.url?.absoluteString == "https://api.example.com/v1/habits")
         #expect(sent.httpMethod == "POST")
     }
@@ -41,7 +41,7 @@ import Testing
 
         _ = try await client.send(.get("habits"), baseURL: other)
 
-        #expect(mock.requests.first?.url?.absoluteString == "https://staging.example.com/habits")
+        #expect(await mock.requests.first?.url?.absoluteString == "https://staging.example.com/habits")
     }
 
     @Test func absoluteURLIgnoresStoredBase() async throws {
@@ -49,7 +49,7 @@ import Testing
 
         _ = try await client.send(.get("https://other.example.com/status"))
 
-        #expect(mock.requests.first?.url?.absoluteString == "https://other.example.com/status")
+        #expect(await mock.requests.first?.url?.absoluteString == "https://other.example.com/status")
     }
 
     @Test func urlRequestPassesThroughUnchanged() async throws {
@@ -58,7 +58,7 @@ import Testing
 
         _ = try await client.send(URLRequest(url: url))
 
-        #expect(mock.requests.first?.url == url)
+        #expect(await mock.requests.first?.url == url)
     }
 
     @Test func responseDataPassesThroughUnchanged() async throws {
@@ -68,6 +68,6 @@ import Testing
         let response = try await client.send(.get("habits/1"))
 
         #expect(response.data == data)
-        #expect(mock.requests.first?.url?.absoluteString == "https://api.example.com/v1/habits/1")
+        #expect(await mock.requests.first?.url?.absoluteString == "https://api.example.com/v1/habits/1")
     }
 }

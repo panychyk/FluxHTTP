@@ -1,17 +1,16 @@
 import Foundation
 
-/// Base class for decorators. Subclasses inherit the `@unchecked Sendable`
-/// conformance, so they must keep their stored state immutable or otherwise
-/// thread-safe.
-open class HTTPClientDecorator: HTTPClient, @unchecked Sendable {
+/// A client that adds behavior around another `HTTPClient`.
+///
+/// Conforming types must satisfy `HTTPClient`'s checked `Sendable`
+/// requirements. Prefer immutable structs or final classes, and keep mutable
+/// state behind an actor or another explicit synchronization boundary.
+public protocol HTTPClientDecorator: HTTPClient {
+    var wrapped: any HTTPClient { get }
+}
 
-    public let wrapped: any HTTPClient
-
-    public init(wrapping: any HTTPClient) {
-        self.wrapped = wrapping
-    }
-
-    open func send(_ request: URLRequest) async throws -> HTTPResponse {
+public extension HTTPClientDecorator {
+    func send(_ request: URLRequest) async throws -> HTTPResponse {
         try await wrapped.send(request)
     }
 }
